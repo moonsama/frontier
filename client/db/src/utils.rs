@@ -58,7 +58,7 @@ fn open_kvdb_rocksdb<Block: BlockT, C: HeaderBackend<Block>>(
 	_source: &DatabaseSource,
 ) -> Result<Arc<dyn Database<DbHash>>, String> {
 	// first upgrade database to required version
-	#[cfg(not(test))]
+	//#[cfg(not(test))]
 	match crate::upgrade::upgrade_db::<Block, C>(client, path, _source) {
 		Ok(_) => (),
 		Err(_) => return Err("Frontier DB upgrade error".to_string()),
@@ -91,7 +91,7 @@ fn open_parity_db<Block: BlockT, C: HeaderBackend<Block>>(
 	_source: &DatabaseSource,
 ) -> Result<Arc<dyn Database<DbHash>>, String> {
 	// first upgrade database to required version
-	#[cfg(not(test))]
+	//#[cfg(not(test))]
 	match crate::upgrade::upgrade_db::<Block, C>(client, path, _source) {
 		Ok(_) => (),
 		Err(_) => return Err("Frontier DB upgrade error".to_string()),
