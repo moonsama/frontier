@@ -87,7 +87,7 @@ pub use evm::{
 #[cfg(feature = "std")]
 use fp_evm::GenesisAccount;
 pub use fp_evm::{
-	Account, CallInfo, CreateInfo, ExecutionInfo, FeeCalculator, InvalidEvmTransactionError,
+	Account, CallInfo, CreateInfo, EvmFreeCall, ExecutionInfo, FeeCalculator, InvalidEvmTransactionError,
 	LinearCostPrecompile, Log, Precompile, PrecompileFailure, PrecompileHandle, PrecompileOutput,
 	PrecompileResult, PrecompileSet, Vicinity,
 };
@@ -155,6 +155,9 @@ pub mod pallet {
 		/// Find author for the current block.
 		type FindAuthor: FindAuthor<H160>;
 
+		/// Decide if user can send a free call or not
+		type FreeCalls: EvmFreeCall;
+
 		/// EVM config used in the module.
 		fn config() -> &'static EvmConfig {
 			&LONDON_CONFIG
@@ -206,6 +209,7 @@ pub mod pallet {
 
 			let is_transactional = true;
 			let validate = true;
+			let is_free = T::FreeCalls::can_send_free_call(&source, &target, &input[..]);
 			let info = match T::Runner::call(
 				source,
 				target,
@@ -218,10 +222,14 @@ pub mod pallet {
 				access_list,
 				is_transactional,
 				validate,
+				is_free,
 				T::config(),
 			) {
 				Ok(info) => info,
 				Err(e) => {
+					if is_free {
+						T::FreeCalls::on_sent_free_call(&source);
+					}
 					return Err(DispatchErrorWithPostInfo {
 						post_info: PostDispatchInfo {
 							actual_weight: Some(e.weight),
@@ -241,6 +249,9 @@ pub mod pallet {
 				}
 			};
 
+			if is_free {
+				T::FreeCalls::on_sent_free_call(&source);
+			}
 			Ok(PostDispatchInfo {
 				actual_weight: Some(T::GasWeightMapping::gas_to_weight(
 					info.used_gas.unique_saturated_into(),
