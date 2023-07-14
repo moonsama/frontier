@@ -30,7 +30,8 @@ mod mock;
 #[cfg(all(feature = "std", test))]
 mod tests;
 
-use ethereum_types::{Bloom, BloomInput, H160, H256, H64, U256};
+use ethereum::{LegacyTransaction, TransactionSignature, EIP658ReceiptData, EIP1559Transaction, EIP1559ReceiptData};
+use ethereum_types::{Bloom, BloomInput, H160, H256, H64, U256, Address};
 use evm::ExitReason;
 use fp_consensus::{PostLog, PreLog, FRONTIER_ENGINE_ID};
 use fp_ethereum::{
@@ -1004,5 +1005,56 @@ impl From<InvalidEvmTransactionError> for InvalidTransactionWrapper {
 				InvalidTransaction::Custom(TransactionValidationError::InvalidChainId as u8),
 			),
 		}
+	}
+}
+
+pub trait EvmEvent {
+	fn deposit(from: H160, to: H160, topics: Vec<H256>, data: &[u8]);
+}
+
+impl<T: Config> EvmEvent for Pallet<T> {
+	fn deposit(from: H160, to: H160, topics: Vec<H256>, data: &[u8]) {
+		let logs = vec![Log {
+			address: to,
+			topics,
+			data: data.to_vec()
+		}];
+		let mut bloom = Bloom::default();
+		Self::logs_bloom(logs.clone(), &mut bloom);
+
+		let tx = Transaction::EIP1559(EIP1559Transaction {
+			chain_id: T::ChainId::get(),
+			nonce: 100.into(),
+			max_fee_per_gas: 0.into(),
+			max_priority_fee_per_gas: 0.into(),
+			gas_limit: 100_000.into(),
+			action: TransactionAction::Call(to),
+			value: 0.into(),
+			input: Vec::new(),
+			access_list: vec![],
+			odd_y_parity: false, 
+			r: H256::from_low_u64_be(1), 
+			s: H256::from_low_u64_le(1),
+		});
+		let pending = Pending::<T>::get();
+		let transaction_hash = tx.hash();
+		let transaction_index = pending.len() as u32;
+		let status = TransactionStatus {
+			transaction_hash,
+			transaction_index,
+			from,
+			to: None,
+			contract_address: Some(to),
+			logs: logs.clone(),
+			logs_bloom: bloom
+		};
+		let receipt = Receipt::Legacy(EIP1559ReceiptData {
+			status_code: 0,
+			used_gas: 0.into(),
+			logs,
+			logs_bloom: bloom,
+		});
+		// let pending = (Transaction, TransactionStatus, Receipt)
+		Pending::<T>::append((tx, status, receipt));
 	}
 }
