@@ -926,7 +926,7 @@ impl<T: Config> Pallet<T> {
 			if let Some(selector) = Self::get_selector(transaction) {
 				let is_free_call = <T as pallet_evm::Config>::FreeCalls::can_send_free_call(source, &target, &selector);
 				return (is_free_call, Some(target), Some(selector))
-			}	
+			}
 		}
 		(false, None, None)
 	}
@@ -955,7 +955,7 @@ impl<T: Config> Pallet<T> {
 			None
 		}
 	}
-	
+
 	#[cfg(feature = "try-runtime")]
 	pub fn pre_migrate_block_v2() -> Result<Vec<u8>, &'static str> {
 		let item = b"CurrentBlock";
