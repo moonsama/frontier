@@ -322,7 +322,6 @@ where
 			import_queue,
 			block_announce_validator_builder: None,
 			warp_sync_params,
-			block_relay: None,
 		})?;
 
 	if config.offchain_worker.enabled {
